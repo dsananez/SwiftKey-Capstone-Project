@@ -1,0 +1,82 @@
+---
+title: "Capstone Exploratory Analysis"
+author: "Daniel Sananez"
+date: "July, 2015"
+output: html_document
+---
+
+In this document, I'll be doing an exploratory analysis of the SwiftyKey Dataset and explaining the goals I have in mind for my algorithm and app.
+
+#Analysis:
+
+First let's do some Line and Word counting. 
+
+
+```{r, echo=FALSE, include=FALSE}
+library(tm)
+library(RWeka)
+library(R.utils)
+library(reports)
+library(slam)
+library(ggplot2)
+countWords <- function(txt_doc){
+  con<-file(txt_doc, "r", blocking=FALSE)
+  x<-as.matrix(readLines(con))
+  wrds<-CW(toString(x[1:length(x)]))
+  return(wrds)
+}
+```
+
+```{r, cache=TRUE, include=FALSE}
+blogs      <- as.matrix(readLines("final/en_US/en_US.blogs.txt",-1,skipNul = TRUE))
+news       <- as.matrix(readLines("final/en_US/en_US.news.txt",-1,skipNul = TRUE))
+tweets     <- as.matrix(readLines("final/en_US/en_US.twitter.txt",-1,skipNul = TRUE))
+```
+
+```{r, cache=TRUE, include=FALSE}
+linesBlogs <- sum(countLines("final/en_US/en_US.blogs.txt"))
+wordsBlogs <- countWords("final/en_US/en_US.blogs.txt")
+linesNews <- sum(countLines("final/en_US/en_US.news.txt"))
+wordsNews <- countWords("final/en_US/en_US.news.txt")
+linesTweets <- sum(countLines("final/en_US/en_US.twitter.txt"))
+wordsTweets <- countWords("final/en_US/en_US.twitter.txt")
+```
+
+```{r}
+print(c(linesBlogs,wordsBlogs,linesNews,wordsNews,linesTweets,wordsTweets))
+```
+
+All right, so we are dealing with 899,288 lines and 37,214,743 words for the blogs file, 1,010,242 lines and 2,634,896 words for news and 2,360,148 lines and 29,763,596 words for tweets. Those are a huge files (so I decided to use a sample of 1% the size of each file to save processing time). Now, after merging the 3 sample datasets in one named "all" and cleaning it from numbers, punctuation and white spaces; let's see which words are repeated more frecuently.
+
+```{r, cache=TRUE, include=FALSE}
+blogsSamp  <- as.matrix(sample(blogs, length(blogs)/100))
+newsSamp   <- as.matrix(sample(news, length(news)/100))
+tweetsSamp <- as.matrix(sample(tweets, length(tweets)/100))
+blogsCorpus  <- VCorpus(DataframeSource(blogsSamp))
+newsCorpus   <- VCorpus(DataframeSource(newsSamp))
+tweetsCorpus <- VCorpus(DataframeSource(tweetsSamp))
+all <- c(blogsCorpus, newsCorpus, tweetsCorpus)
+corpusClean <- tm_map(all, removeNumbers)
+corpusClean <- tm_map(all, removePunctuation)
+corpusClean <- tm_map(all, stripWhitespace)
+corpusClean <- tm_map(all, content_transformer(tolower))
+MonoGramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+alltdm <- TermDocumentMatrix(corpusClean, control = list(tokenize = MonoGramTokenizer))
+```
+
+```{r, cache=TRUE, include=FALSE}
+sorted <- sort(row_sums(alltdm), decreasing = TRUE)
+histo <- data.frame(freq=sorted[1:20], word=names(sorted[1:20]))
+a <- qplot(histo$word,histo$freq) 
+a
+```
+
+```{r}
+print(a)
+```
+
+Here is a histogram with the most frequent words in my sample. Not surprising most of them are connectors.
+
+#Goals
+
+My main goal is to use various n-gram models (im thinking of 1,2,3 and 4 grams) and to iterate between them to choose which word should come next, given a piece of text or a sentence. I will sort my frequency term matrix to evaluate which combination of words is more likely given the context.
