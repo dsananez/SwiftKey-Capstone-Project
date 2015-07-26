@@ -11,7 +11,6 @@ In this document, I'll be doing an exploratory analysis of the SwiftyKey Dataset
 
 First let's do some Line and Word counting. 
 
-
 ```{r, echo=FALSE, include=FALSE}
 library(tm)
 library(RWeka)
